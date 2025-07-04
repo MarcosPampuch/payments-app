@@ -15,8 +15,14 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+def index() -> str:
+    """
+    Handle the main page for uploading a CSV file, processing it, sending unique records to Kafka,
+    and displaying duplicated and suspect records in the browser.
+
+    Returns:
+        str: Rendered HTML page.
+    """
     if request.method == 'POST':
         file = request.files.get('file')
 
@@ -80,6 +86,8 @@ def index():
             logger.warning("Invalid file. Please upload a CSV file.")
             return render_template('index.html', message="Invalid file. Please upload a CSV file.")
     return render_template('index.html', message=None)
+
+app.add_url_rule('/', 'index', index, methods=['GET', 'POST'])
 
 if __name__ == '__main__':
     app.run(debug=True, host=os.getenv("UI_HOST"), port=os.getenv("UI_PORT"))

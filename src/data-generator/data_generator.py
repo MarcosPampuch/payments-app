@@ -12,7 +12,11 @@ from helper.logger import logger
 
 
 
-def main():
+def main() -> None:
+    """
+    Generate random payment records and publish them to a Kafka topic at regular intervals.
+    Fetches user and currency IDs from Postgres for realistic data generation.
+    """
     try:
        
         logger.info("Connecting to Postgres...")

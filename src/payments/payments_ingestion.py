@@ -7,7 +7,11 @@ from helper.helper import open_yaml, validate_event
 from helper.logger import logger
 
 
-def main():
+def main() -> None:
+    """
+    Consume messages from a Kafka topic, validate them against a schema, and upsert valid records into Postgres.
+    Handles errors gracefully and logs all major events.
+    """
     logger.info("Connecting to Postgres...")
     pg_client = PostgresSQL(
         dbname=getenv("DB_NAME"),
