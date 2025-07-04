@@ -1,0 +1,9 @@
+payments:
+  transaction_id: str
+  sender_id: str
+  receiver_id: str
+  amount: float
+  currency_code: int
+  timestamp: str
+  status: str 
+

@@ -1,0 +1,131 @@
+version: '3'
+services:
+  broker:
+    build:
+      context: ./kafka
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
+      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  ui-importer:
+    build:
+      context: .
+      dockerfile: ui-importer/Dockerfile
+    depends_on:
+      - broker
+    container_name: ui-importer
+    ports:
+      - "5050:5050"
+    environment:
+      UI_PORT: 5050
+      UI_HOST: 0.0.0.0
+      KAFKA_BROKER: 'broker:29092'
+      KAFKA_TOPIC: payments-events
+
+  postgres:
+    image: postgres:13.3-alpine
+    hostname: payments_postgres
+    container_name: payments_postgres
+    environment:
+      POSTGRES_DB: payments_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password1234
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    # volumes:
+    #   - postgres_data:/var/lib/postgresql/data
+
+  
+  payments:
+    build:
+      context: .
+      dockerfile: payments/Dockerfile
+    depends_on:
+      - postgres
+    hostname: payments
+    container_name: payments
+    environment:
+      DB_USER: admin
+      DB_PASSWORD: password1234
+      DB_HOST: payments_postgres
+      DB_PORT: 5432
+      DB_NAME: payments_db
+      KAFKA_BROKER: 'broker:29092'
+      KAFKA_TOPIC: payments-events
+
+
+  data-generator:
+    build:
+      context: .
+      dockerfile: data-generator/Dockerfile
+    depends_on:
+      - postgres
+      - broker
+    hostname: data-generator
+    container_name: data-generator
+    environment:
+      DB_USER: admin
+      DB_PASSWORD: password1234
+      DB_HOST: payments_postgres
+      DB_PORT: 5432
+      DB_NAME: payments_db
+      KAFKA_BROKER: 'broker:29092'
+      KAFKA_TOPIC: payments-events
+
+
+  metabase-postgres:
+    image: postgres:13.3-alpine
+    hostname: metabase_postgres
+    container_name: metabase_postgres
+    environment:
+      POSTGRES_DB: mb_db
+      POSTGRES_USER: mb_admin
+      POSTGRES_PASSWORD: mb_password1234
+    ports:
+      - "5434:5432"
+    volumes:
+    - ./data-visualization/dashboard_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    hostname: metabase
+    depends_on:
+      - postgres
+      - metabase-postgres
+    volumes:
+      - /dev/urandom:/dev/random:ro
+    ports:
+      - 3000:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: mb_db
+      MB_DB_PORT: 5432
+      MB_DB_USER: mb_admin
+      MB_DB_PASS: mb_password1234
+      MB_DB_HOST: metabase_postgres
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      
