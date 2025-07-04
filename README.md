@@ -123,6 +123,14 @@ These files are located in the `csvs/` directory.
 - **regular_transactions.csv**  
   Contains only valid, unique transactions (no duplicates, no suspicious amounts).
 
+---
+
+## Environment
+
+This project was developed and tested with the following versions:
+
+- **Docker:** 28.1.1, build 4eba377
+- **Docker Compose:** v2.35.1-desktop.1
 
 ---
 
