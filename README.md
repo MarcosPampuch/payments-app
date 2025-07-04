@@ -34,6 +34,19 @@ Below is a brief description of each container in the system:
 
 ---
 
+## Data Validation Flow
+
+Validation in this platform is performed in two stages:
+
+- **CSV Importer UI:**
+  - Only checks if the uploaded file is a valid, non-corrupted CSV and remove duplicates. It does not validate the content or schema of individual records.
+
+- **Payments Ingestion Service:**
+  - Performs all record-level validation. Each record consumed from Kafka is checked against the expected schema.
+  - Any record that fails schema validation is **not inserted** into the database, and a log entry is created for every invalid record, making it easy to audit and debug ingestion issues.
+
+---
+
 ## How to Run
 
 1. **Clone the repository:**
@@ -89,7 +102,7 @@ Metabase provides a user-friendly interface to explore and visualize your paymen
 
 ## Pre-generated CSV Files for Import
 
-A set of pre-generated CSV files is provided in the repository for testing and demonstration. You can upload these files through the CSV Importer UI to see how the platform handles different scenarios.
+A set of pre-generated CSV files is provided in the repository for testing and demonstration.
 
 These files are located in the `csvs/` directory.
 
@@ -110,7 +123,6 @@ These files are located in the `csvs/` directory.
 - **regular_transactions.csv**  
   Contains only valid, unique transactions (no duplicates, no suspicious amounts).
 
-You can upload any of these files through the CSV Importer UI to see how the system processes and displays the data.
 
 ---
 
