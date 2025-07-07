@@ -1,9 +1,8 @@
 import json
 from kafka import KafkaConsumer
-import psycopg2
 from os import getenv
 from helper.postgres import PostgresSQL
-from helper.helper import open_yaml, validate_event
+from helper.helper import open_yaml, validate_payments_event, format_imported_payment
 from helper.logger import logger
 
 
@@ -24,8 +23,7 @@ def main() -> None:
 
     logger.info("Connecting to Kafka...")
     consumer = KafkaConsumer(
-        getenv('KAFKA_TOPIC'),
-        bootstrap_servers=[getenv('KAFKA_BROKER')],
+        bootstrap_servers=getenv('KAFKA_BROKER'),
         auto_offset_reset='earliest',
         enable_auto_commit=True,
         group_id='payments-group',
@@ -34,23 +32,36 @@ def main() -> None:
 
     payments_json_schema = open_yaml(path='./helper/message.yml')['payments']
 
-    logger.info("Starting to consume messages from 'payments-events'")
+    consumer.subscribe([getenv('KAFKA_PAYMENTS_TOPIC'),getenv('KAFKA_IMPORTS_TOPIC')])
+    logger.info("Starting to consume messages from 'payments-events' and 'import-payments-events'")
     
     try:
         for message in consumer:
+
             try:
                 data = json.loads(message.value)
+                if message.topic == 'payments-events':
 
-                if not validate_event(data=data, json_schema=payments_json_schema):
-                    logger.warning(f"Invalid schema: {message.value}")
-                    logger.warning("Message does not correspond to the current defined schema.")
-                    continue
+                    if not validate_payments_event(data=data, json_schema=payments_json_schema):
+                        logger.warning(f"Invalid schema: {message.value}")
+                        logger.warning("Message does not correspond to the current defined schema.")
+                        continue
 
-                pg_client.upsert_transaction(data)
-                logger.info(f"Upserted transaction: {data['transaction_id']}")
+                    pg_client.upsert_transaction(data)
+                    logger.info(f"Upserted transaction: {data['transaction_id']}")
+                
+                elif message.topic == 'import-payments-events':
+                    formated_json = format_imported_payment(data=data, postgres_client=pg_client)
+
+                    if not formated_json:
+                        logger.warning(f"Could not parse the imported record {data}")
+                        continue
+
+                    pg_client.upsert_transaction(formated_json,imported_transaction=True)
+                    logger.info(f"Transaction inserted from CSV file {data['source_file']}")
 
             except Exception as e:
-                logger.error(f"Error ingesting record: {e}")
+                logger.error(f"Error {e} while parsing or inserting message {data}")
                 continue
             
     except KeyboardInterrupt:

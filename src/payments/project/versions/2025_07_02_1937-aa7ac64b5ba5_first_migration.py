@@ -42,7 +42,7 @@ def upgrade() -> None:
         sa.Column('receiver_user_id', UUID(as_uuid=True), nullable=False),
         sa.Column('amount', DECIMAL(10, 2), nullable=False),
         sa.Column('currency_id', sa.Integer, nullable=False),
-        sa.Column('transaction_date', DATE, nullable=False),
+        sa.Column('transaction_date', TIMESTAMP, nullable=False),
         sa.Column('status', VARCHAR(20), nullable=False),
         sa.Column('created_at', TIMESTAMP, server_default=sa.func.current_timestamp(), nullable=False),
         sa.Column('modified_at', TIMESTAMP, server_default=sa.func.current_timestamp(), nullable=False)
@@ -51,6 +51,11 @@ def upgrade() -> None:
     op.execute("""
         ALTER TABLE transactions
         ALTER COLUMN id SET DEFAULT gen_random_uuid();
+    """)
+
+    op.execute("""
+        ALTER TABLE transactions
+        ALTER COLUMN transaction_id SET DEFAULT gen_random_uuid();
     """)
     
     

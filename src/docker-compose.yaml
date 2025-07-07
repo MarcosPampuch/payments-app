@@ -37,7 +37,7 @@ services:
       UI_PORT: 5050
       UI_HOST: 0.0.0.0
       KAFKA_BROKER: 'broker:29092'
-      KAFKA_TOPIC: payments-events
+      KAFKA_TOPIC: import-payments-events
 
   postgres:
     image: postgres:13.3-alpine
@@ -69,7 +69,8 @@ services:
       DB_PORT: 5432
       DB_NAME: payments_db
       KAFKA_BROKER: 'broker:29092'
-      KAFKA_TOPIC: payments-events
+      KAFKA_PAYMENTS_TOPIC: payments-events
+      KAFKA_IMPORTS_TOPIC: import-payments-events
 
 
   data-generator:
@@ -129,3 +130,5 @@ services:
       timeout: 5s
       retries: 10
       
+# volumes:
+#   postgres_data:

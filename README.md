@@ -18,16 +18,16 @@ Below is a brief description of each container in the system:
   The main relational database for storing users, currencies, and transaction records.
 
 - **Broker**  
-  Kafka broker is used as the event streaming platform for ingesting and distributing payment events.
+  Kafka broker is used as the event streaming platform for ingesting and distributing payment events. It is composed by the topics `payments-events` and `import-payments-events`.
 
 - **Metabase**  
   An open-source business intelligence tool for visualizing and exploring the data stored in Postgres.
 
 - **Payments Ingestion Service**  
-  A Python service that consumes payment events from Kafka, validates them, and upserts them into the Postgres database. This service is also responsible for creating the Postgres tables, indexes, constraints, and triggers, as well as populating the users and currencies tables—all managed through migrations using the Alembic framework.
+  A Python service that consumes messages from Kafka topics `payments-events` and `import-payments-events`, validates them, and upserts them into the Postgres table `transactions`. This service is also responsible for creating the Postgres tables, indexes, constraints, and triggers, as well as populating the users and currencies tables—all managed through migrations using the Alembic framework.
 
 - **Data Generator**  
-  A Python service that generates synthetic payment events and publishes them to Kafka for demonstration purposes.
+  A Python service that generates synthetic payment events every 2 seconds and publishes them to Kafka for demonstration purposes.
 
 - **CSV Importer UI**  
   A Flask web application that allows users to upload CSV files containing payment data. The app parses, validates, and streams the data to Kafka, highlighting duplicates and suspicious records (e.g., high-value transactions).
@@ -60,10 +60,17 @@ Validation in this platform is performed in two stages:
    ```
    This will build and start all containers defined in the `docker-compose.yml` file.
 
-3. **(Optional) View logs for a specific service:**
+3. **(Recommended) Insert first load of data through CSV file:**
+   
+    i. Access the [csv importer interface](http://localhost:5050).
+    
+    ii. Load file `csvs/huge_load_transactions`.
+
+4. **(Optional) View logs for a specific service:**
    ```bash
    docker-compose logs -f <service-name>
    ```
+
 
 ---
 
@@ -90,14 +97,14 @@ Metabase provides a user-friendly interface to explore and visualize your paymen
 
 - **Credentials:**
   - **User:** marcospampuch@gmail.com
-  - **Password:** #1_Circle.
+  - **Password:** #1_Circle
 
 - **How to use:**  
   1. Open the URL in your browser.
   2. Log in with the credentials above.
   3. Navigate to the **Home** page.
   4. Access the **Overview Dashboard** to see the metrics and visualizations for your payment data.
-
+ 
 ---
 
 ## Pre-generated CSV Files for Import
@@ -108,17 +115,14 @@ These files are located in the `csvs/` directory.
 
 ### CSV File Descriptions
 
-- **transactions_data_full.csv**  
+- **huge_load_transactions.csv**  
   A large dataset of transactions, intended primarily for initial database population and bulk testing.
 
 - **suspicious_duplicated_transactions.csv**  
   Contains example transactions that include both duplicated records and records with amounts above the suspicious threshold (amount > 8000).
 
 - **suspicious_transactions.csv**  
-  Contains only transactions with amounts above the suspicious threshold (amount > 8000), but no duplicates.
-
-- **duplicated_transactions.csv**  
-  Contains only duplicated transaction records (no suspicious amounts).
+  Contains only transactions with amounts above the suspicious threshold (amount > 8000).
 
 - **regular_transactions.csv**  
   Contains only valid, unique transactions (no duplicates, no suspicious amounts).
@@ -144,11 +148,35 @@ Here are some ideas for future enhancements to this platform:
 - **CSV Schema Validation:**
   - Implement stricter validation of CSV columns in the UI Importer to ensure only valid files are processed.
 
-- **Topic Separation and Conditional Validation:**
-  - Publish UI-imported records to a dedicated Kafka topic. The ingestion service would consume from both the synthetic and UI topics, applying different validation rules depending on the source.
-
 - **Data Warehouse Replication:**
   - Develop a batch or streaming process (using Kafka Connect, Debezium, or custom code) to replicate data from Postgres to a data warehouse, enabling advanced analytics and dashboarding.
+
+---
+
+## Observations
+
+### Transaction Updates
+
+Updates of records are only possible through the `transaction_id` field. Both the data generator and UI importer are primarily designed for inserting new records (as they never generate repeated transaction IDs). However, updates are possible if a transaction with an existing `transaction_id` is inserted into the `payments-events` topic.
+
+When an upsert operation completes successfully, the `modified_at` column will be updated to the current timestamp.
+
+### Testing Transaction Updates
+
+To test the update functionality, follow these steps:
+
+1. **Access the Kafka broker container:**
+   ```bash
+   docker exec -it broker bash
+   ```
+
+2. **Insert a record using the Kafka console producer:**
+   ```bash
+   /opt/kafka/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic payments-events
+   ```
+
+3. **Important Note:** The `transaction_id` of the event must currently exist in the transactions table for the update to work properly.
+
 
 ---
 

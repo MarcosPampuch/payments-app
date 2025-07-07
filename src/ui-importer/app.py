@@ -34,6 +34,9 @@ def index() -> str:
 
             try:
                 df = pd.read_csv(filepath, sep=',')
+                
+                # Add a column with the CSV filename
+                df['source_file'] = file.filename
         
                 df = df.sort_values(by=df.columns[:2].tolist())        
 

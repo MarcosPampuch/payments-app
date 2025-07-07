@@ -25,7 +25,7 @@ def upgrade() -> None:
 
     # Data to insert into currencies table
     currencies_data = [
-        (840, 'USA', 'Dollar'),
+        (840, 'USD', 'Dollar'),
         (978, 'EUR', 'Euro'),
         (608, 'PHP', 'Philippine Peso'),
         (344, 'HKD', 'Hong Kong Dollar'),

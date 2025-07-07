@@ -3,6 +3,7 @@ import random
 import uuid
 from datetime import datetime, timezone
 import csv
+from helper.logger import logger
 
 def open_yaml(path: str) -> dict:
     """
@@ -19,7 +20,7 @@ def open_yaml(path: str) -> dict:
     return yaml_file
 
 
-def validate_event(data: dict, json_schema: dict) -> bool:
+def validate_payments_event(data: dict, json_schema: dict) -> bool:
     """
     Validate a data dictionary against a JSON schema dictionary.
     Returns True if the data matches the schema (including types and keys), False otherwise.
@@ -82,6 +83,74 @@ def file_validator(filename: str) -> bool:
         bool: True if the file is a CSV, False otherwise.
     """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'csv'
+
+
+def format_imported_payment(data: dict, postgres_client) -> dict:
+    """
+    Validate imported payment data and return only the specified fields.
+    
+    Args:
+        data (dict): The imported payment data to validate.
+        postgres_client: PostgreSQL client object with get_user_id_from_username method.
+        
+    Returns:
+        dict: A dictionary containing only the validated fields:
+            - sender_id (int)
+            - receiver_id (int)
+            - amount (float)
+            - currency (string)
+            - transaction_date (timestamp)
+            - status (string)
+    """
+    
+    required_fields = {
+        'username_sender': str,
+        'username_receiver': str,
+        'amount': (float, int), 
+        'currency': str,
+        'transaction_date': str,  
+        'status': str
+    }
+    
+    validated_data = {}
+    
+    for field, expected_type in required_fields.items():
+        if field not in data:
+            return None 
+            
+        value = data[field]
+        
+
+        if field == 'amount':
+            if not isinstance(value, (float, int)):
+                return None
+            validated_data[field] = float(value)
+        else:
+            if not isinstance(value, expected_type):
+                return None
+            if field not in ('username_sender', 'username_receiver', 'currency'):
+                validated_data[field] = value
+    
+    
+    sender_id, receiver_id = postgres_client.get_user_id_from_username(sender=data['username_sender'], 
+                                                                       receiver=data['username_receiver'])
+    
+    if not sender_id or not receiver_id:
+        return None
+    else:
+        validated_data['sender_id'] = sender_id
+        validated_data['receiver_id'] = receiver_id
+    
+    
+
+    currency_code = postgres_client.get_currency_code_from_currency(currency=data['currency'])
+
+    if not currency_code:
+        return None
+    else:
+        validated_data['currency_code'] = currency_code
+
+    return validated_data
 
 
 
