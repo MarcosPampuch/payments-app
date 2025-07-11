@@ -5,6 +5,8 @@ from kafka import KafkaProducer
 import json
 from helper.logger import logger
 from helper.helper import file_validator
+from minio import Minio
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -13,6 +15,13 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 producer = KafkaProducer(
     bootstrap_servers=os.getenv('KAFKA_BROKER'),
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+minio = Minio(
+    os.getenv("MINIO_HOST"),
+    access_key=os.getenv("MINIO_ROOT_USER"),
+    secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
+    secure=False
 )
 
 def index() -> str:
@@ -26,16 +35,39 @@ def index() -> str:
     if request.method == 'POST':
         file = request.files.get('file')
 
-        # Check if the file exists and is a valid CSV
         if file and file_validator(file.filename):
+            current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename_with_timestamp = f"{file.filename.split('.')[0]}_{current_datetime}.csv"
+            
            
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filepath)
+            try:
+                
+                file.seek(0)
+                
+                # Get file size
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+                
+                
+                minio.put_object(
+                    bucket_name=os.getenv("MINIO_BUCKET"),
+                    object_name=filename_with_timestamp,
+                    data=file.stream,
+                    length=file_size,
+                    content_type="text/csv"
+                )
+                logger.info(f"File uploaded to MinIO: {filename_with_timestamp}")
+                
+            except Exception as e:
+                logger.error(f"Error uploading to MinIO: {str(e)}")
+                
+            file.seek(0)
 
             try:
-                df = pd.read_csv(filepath, sep=',')
+                df = pd.read_csv(file, sep=',')
                 
-                # Add a column with the CSV filename
+               
                 df['source_file'] = file.filename
         
                 df = df.sort_values(by=df.columns[:2].tolist())        

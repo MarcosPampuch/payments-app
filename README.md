@@ -15,7 +15,7 @@ Below is a brief description of each container in the system:
 ### Containers Overview
 
 - **Postgres**  
-  The main relational database for storing users, currencies, and transaction records.
+  The main relational database for storing users, currencies, and transactions records.
 
 - **Broker**  
   Kafka broker is used as the event streaming platform for ingesting and distributing payment events. It is composed by the topics `payments-events` and `import-payments-events`.
@@ -30,13 +30,16 @@ Below is a brief description of each container in the system:
   A Python service that generates synthetic payment events every 2 seconds and publishes them to Kafka for demonstration purposes.
 
 - **CSV Importer UI**  
-  A Flask web application that allows users to upload CSV files containing payment data. The app parses, validates, and streams the data to Kafka, highlighting duplicates and suspicious records (e.g., high-value transactions).
+  A Flask web application that allows users to upload CSV files containing payment data. The app parses, validates, and streams the data to Kafka, highlighting duplicated and suspicious records (e.g., high-value transactions).
 
+- **Minio**  
+  The Minio container is responsable for holding all CSV files uploaded by the Importer UI.
+  
 ---
 
 ## Data Validation Flow
 
-Validation in this platform is performed in two stages:
+Data validationw before inserting data in the database are performed in two stages:
 
 - **CSV Importer UI:**
   - Only checks if the uploaded file is a valid, non-corrupted CSV and remove duplicates. It does not validate the content or schema of individual records.
@@ -85,6 +88,12 @@ Once all containers are running, you can access the CSV Importer UI to upload pa
   1. Open the URL in your browser.
   2. Upload a CSV file with payment records.
   3. The UI will display and drop any duplicate for you and also output suspicious records before sending them to Kafka for processing.
+
+- **Check uploaded files:**  
+  1. All files uploaded can be seen in Minio's UI interface: [http://localhost:9000](http://localhost:9000)
+  2. Credentials to access the UI are:
+      - **User:** admin
+      - **Password:** password1234
 
 ---
 
@@ -142,8 +151,8 @@ This project was developed and tested with the following versions:
 
 Here are some ideas for future enhancements to this platform:
 
-- **MinIO Integration:**
-  - Add a dedicated MinIO container to store all files uploaded through the UI Importer for audit and backup purposes.
+- **Integrate all UIs:**
+  - Unify the Minio, CSV Importer and Metabase interface by a root page that redirects the user.
 
 - **CSV Schema Validation:**
   - Implement stricter validation of CSV columns in the UI Importer to ensure only valid files are processed.

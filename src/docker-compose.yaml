@@ -24,16 +24,54 @@ services:
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
+  minio:
+    container_name: minio
+    image: minio/minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_BUCKET: files-imported
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password1234
+      MINIO_HOST: 'minio:9000'
+    # volumes:
+    #   - minio_data:/data
+    command: server /data --console-address ":9001"
+  
+  ## this container will just create the bucket files-imported if it does not exist.
+  minio_client:
+    image: minio/mc
+    container_name: mc
+    depends_on:
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password1234
+    entrypoint: >
+      /bin/sh -c "
+        until (/usr/bin/mc alias set minio http://minio:9000 admin password1234) do echo '...waiting...' && sleep 1; done;
+        if ! /usr/bin/mc ls minio/files-imported; then
+          /usr/bin/mc mb minio/files-imported;
+          /usr/bin/mc policy set public minio/files-imported;
+        fi;
+        "
+
   ui-importer:
     build:
       context: .
       dockerfile: ui-importer/Dockerfile
     depends_on:
       - broker
+      - minio
     container_name: ui-importer
     ports:
       - "5050:5050"
     environment:
+      MINIO_BUCKET: files-imported
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password1234
+      MINIO_HOST: 'minio:9000'
       UI_PORT: 5050
       UI_HOST: 0.0.0.0
       KAFKA_BROKER: 'broker:29092'
