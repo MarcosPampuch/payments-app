@@ -90,7 +90,7 @@ Once all containers are running, you can access the CSV Importer UI to upload pa
   3. The UI will display and drop any duplicate for you and also output suspicious records before sending them to Kafka for processing.
 
 - **Check uploaded files:**  
-  1. All files uploaded can be seen in Minio's UI interface: [http://localhost:9000](http://localhost:9000)
+  1. All files uploaded can be seen in Minio's UI interface: [http://localhost:9001/browser/files-imported](http://localhost:9001/browser/files-imported)
   2. Credentials to access the UI are:
       - **User:** admin
       - **Password:** password1234
